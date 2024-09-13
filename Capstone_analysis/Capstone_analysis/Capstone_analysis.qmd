@@ -1,0 +1,63 @@
+---
+title: "11/12/2012 IP Traffic"
+author: "Kevin Bradshaw"
+format:
+  html:
+    embed-resources: true
+  pdf: default
+  docx: default
+format-links: false
+df-print: kable
+execute: 
+  echo: false
+---
+
+```{r}
+#| include: false
+library(tidyverse)
+library(ggplot2)
+library(readr)
+library(here)
+library(dplyr)
+library(stringr)
+
+
+dt <- read_csv(here(("capstone_clean_pcap.csv"))) 
+#loads important libraries and source data. Not displayed in report. 
+```
+
+This report examines a set of IP packets captured on 11/12/2012. The machines participating in the conversation, error checking, and time elapsed between packets are the focus of the analysis.
+
+## Participants
+
+There are `r n_distinct(dt$sources)` machines involved in the conversation. DNS resolution tells us that they are:
+
+`r unique(dt$sources)`
+
+## Protocols
+
+This is the list of protocols utilized by the packets: <br>
+UDP: `r sum(str_count(dt$protocol, "udp"))`<br>
+TCP: `r sum(str_count(dt$protocol, "tcp"))`<br>
+MDNS: `r sum(str_count(dt$protocol, "mdns"))`<br>
+ARP: `r sum(str_count(dt$protocol, "arp"))`<br>
+TLS: `r sum(str_count(dt$protocol, "tls"))`<br>
+
+## Error Checking
+
+There are `r sum(dt$checksum == 1)` checksum errors and `r sum (dt$ecn == 1)` congestion errors represented for a total of `r sum(dt$checksum == 1) + sum (dt$ecn == 1)` unsuccessfully transferred packets.
+
+## Latency
+
+The average latency across the network was `r mean(dt$packet_time)` seconds. The fastest packet took `r min(dt$packet_time)` seconds to traverse the network while the slowest took `r max(dt$packet_time)` seconds.
+
+The figure below shows the average latency per destination device.
+
+```{r}
+avg_p_t <- dt %>%
+  group_by(destinations)%>%
+  summarize(avg_p_time = mean(packet_time, na.rm = TRUE))
+#creates the average packet time object
+ggplot(data = avg_p_t) +
+  geom_bar(mapping = aes(x = destinations, y = avg_p_time *1000, fill = destinations ),stat = "identity") + labs(x= "Destinations", y = "Average Latency (ms)") + theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1)) 
+```
